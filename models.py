@@ -12,8 +12,8 @@ class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key = True)
     name = Column(String(32), index = True)
-    password_hash = Column(String(64))
-
+    email = Column(String(250), index = True)
+    picture = Column(String(250), index = True)
 class Cuisine(Base):
     __tablename__ = 'cuisines'
     cuisine_id = Column(String(80), primary_key=True)
@@ -28,7 +28,7 @@ class Recipe(Base):
     name = Column(String(80), nullable = False)
     description = Column(String(250))
     difficulty = Column(String(80))
-    cuisine_id = Column(String, ForeignKey('cuisines.cuisine_id'))
+    cuisine_id = Column(String, ForeignKey('cuisines.cuisine_id'), nullable=False)
     cuisine = relationship(Cuisine)
     user_id = Column(Integer, ForeignKey('users.id'))
     user = relationship(User)
@@ -53,12 +53,7 @@ class Ingredient(Base):
     recipe = relationship(Recipe)
     amount = Column(Integer)
     unit = Column(String(80))
-
-class Consumable(Base):
-    __tablename__ = 'consumables'
-    name = Column(String(80))
-    id = Column(Integer, primary_key = True)
-    amount = Column(Integer)
-    unit = Column(String(80))
+    user_id = Column(Integer, ForeignKey('users.id'))
+    user = relationship(User)
 
 Base.metadata.create_all(engine)
