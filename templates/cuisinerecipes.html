@@ -1,0 +1,34 @@
+
+
+{% extends "main.html" %}
+{% block content %}
+{% include "header.html" %}
+
+    <header>
+      <h1>All Recipes</h1>
+    </header>
+		<a href="{{url_for('createRecipe')}}">Create New</a>
+    <ul>
+      {% if not recipes%}
+        <h1> you aint got no recipes.</h1>
+      {% else %}
+      {% for recipe in recipes %}
+      <li>
+        <h2>{{recipe.name}}</h2>
+        <p>{{recipe.description}}</p>
+        <p>{{recipe.cuisine_id}}</p>
+        <p>{{recipe.difficulty}}</p>
+        <p>{{recipe.user_id}}</p>
+				{% if user_id == recipe.user_id %}
+				<a href="{{url_for('all_recipes_handler')}}">Edit</a>
+				<a href="{{url_for('all_recipes_handler')}}">Delete</a>
+				{% endif %}
+      </li>
+
+      {% endfor %}
+      {% endif %}
+    </ul>
+    <a href = "{{url_for('all_recipes_handler')}}"> Cancel </a>
+
+
+{% endblock %}

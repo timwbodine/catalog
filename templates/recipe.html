@@ -1,0 +1,99 @@
+{% extends "main.html" %}
+{% block content %}
+	<div class="row top-menu">
+		<div class="col-md-10"></div>
+		<div class="col-md-2 text-right">
+			<a href="{{url_for('showLogin')}}">Click Here to Log in </a>
+		</div>
+	</div>
+	<div class="row divider blue">
+		<div class="col-md-12"></div>
+	</div>
+	<div class="row banner main">
+		<div class="col-md-1"></div>
+		<div class="col-md-11 padding-none">
+			<h1>Restaurants</h1>
+		</div>
+	</div>
+
+	<div class = 'flash'>
+		      {% with messages = get_flashed_messages() %}
+      {% if messages %}
+          
+        <ul>
+        {% for message in messages %}
+            <li> <strong> {{ message }} </strong> </li>
+        {% endfor %}
+        </ul>
+        {% endif %}
+    {% endwith %}
+
+</div>
+
+
+	
+	<div class="row padding-top padding-bottom">
+		<div class="col-md-1"></div>
+		<div class="col-md-10 padding-none">
+			
+		</div>
+		<div class="col-md-1"></div>
+	</div>
+	<div class="col-md-1"></div>
+		<div class="col-md-10 restaurant-list">
+			<h3>{{recipe.name}}</h3>
+		</div>
+		{%for ingredient in ingredients%}
+		<li><p>{{ingredient.name}}</p>
+		       
+				{% if user_id == ingredient.user_id %}
+				<a href="{{url_for('all_recipes_handler')}}">Edit</a>
+				<a class="delete" id="{{ingredient.id}}",  href="#">Delete</a>
+				{% endif %}
+		</li>
+		{%endfor%}	
+
+	<div class="col-md-1"></div>
+	
+<script type="text/javascript">
+	$('.delete').each(function(i) {
+		id = $(this).attr('id')
+		$(this).click(function() {
+			$.ajax({
+				type: 'delete',
+				url: '/cuisines/{{cuisine_id}}/recipes/{{recipe.id}}/ingredients/'+id.toString(),
+				success: function(data){
+					console.log('Deletion was successful.');
+					console.log(data);
+					window.location.href = "/cuisines/{{cuisine_id}}/recipes/{{recipe.id}}"
+				},
+				error: function (data) {
+					console.log('An error occurred.');
+					console.log(data);
+
+				},	
+			});
+		});
+	});
+
+    frm.submit(function (e) {
+
+        e.preventDefault();
+
+        $.ajax({
+            type: frm.attr('method'),
+            url: frm.attr('action'),
+            data: frm.serialize(),
+            success: function (data) {
+                console.log('Submission was successful.');
+                console.log(data);
+		window.location.href= "/cuisines/{{cuisine_id}}/recipes/{{recipe_id}}"
+            },
+            error: function (data) {
+                console.log('An error occurred.');
+                console.log(data);
+            },
+        });
+    });
+</script>
+{% endblock %}
