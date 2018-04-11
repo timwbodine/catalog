@@ -162,7 +162,8 @@ def googleDisconnnect():
 def showLogin():
     state=''.join(random.choice(string.ascii_uppercase + string.digits) for x in xrange(32))
     login_session['state'] = state
-    return render_template('login.html', STATE=state)
+    print(state)
+    return render_template('newLogin.html', STATE=state)
     return "The current session state is %s" %login_session['state']
     
 @app.route('/createrecipe', methods = ['GET', 'POST'])
@@ -178,7 +179,7 @@ def createRecipe():
         newRecipe = Recipe(name = request.form['name'], description = request.form['description'], difficulty = request.form['difficulty'], cuisine_id = request.form['cuisine'], user_id = getUserId(login_session['email']))
         session.add(newRecipe)
         session.commit()
-        return redirect(url_for('all_recipes_handler'))
+        return redirect(url_for('create_ingredient', cuisine_id=newRecipe.cuisine_id, recipe_id=newRecipe.id))
 @app.route('/allrecipes', methods = ['GET', 'POST'])
 def all_recipes_handler():
     if request.method == 'GET':
@@ -218,31 +219,41 @@ def cuisine_recipes_handler(cuisine_id):
         else:
             user_id = getUserId(login_session['email'])
         recipes = session.query(Recipe).filter_by(cuisine_id=cuisine_id).all()
-        return render_template("cuisinerecipes.html", recipes=recipes, user_id=user_id)
+        return render_template("cuisinerecipes.html", recipes=recipes,cuisine=cuisine_id, user_id=user_id)
         return jsonify(recipes =[i.serialize for i in recipes])
 
 @app.route('/cuisines/<string:cuisine_id>/recipes/<int:id>', methods = ['GET','PUT','DELETE'])
 def recipe_handler(id, cuisine_id):
     recipe = session.query(Recipe).filter_by(id=id, cuisine_id=cuisine_id).one()
     ingredients = session.query(Ingredient).filter_by(recipe_id=id).all()
+    creator=getUserInfo(recipe.user_id)
     if request.method == 'GET':
-        if 'username' not in login_session:
-            user_id = None
+        if 'username' not in login_session or creator.id != login_session['id']:
+            return render_template("recipe.html", cuisine_id=cuisine_id, user_id=None, recipe=recipe, ingredients=ingredients) 
         else:
             user_id = getUserId(login_session['email'])
         return render_template("recipe.html", cuisine_id=cuisine_id, user_id=user_id, recipe=recipe, ingredients=ingredients) 
         return jsonify(RecipeAttributes = recipe.serialize)
     if request.method == 'PUT':
-        if 'username' not in login_session or creator.id != login_session['user_id']:
+        print("hello!")
+        if 'username' not in login_session or creator.id != login_session['id']:
             return redirect(url_for("showLogin"))
-        name = request.args['name']
-        description = request.args['description']
-        difficulty = request.args['difficulty']
-        cuisine_id = request.args['cuisine_id']
+        print(request.form['name'])
+        print(recipe.name + recipe.description + recipe.difficulty + recipe.cuisine_id)
+        print(session.query(Recipe).filter_by(id=id, cuisine_id=cuisine_id).one())
+        recipe.name = request.form['name']
+        recipe.description = request.form['description']
+        recipe.difficulty = request.form['difficulty']
+        recipe.cuisine_id = request.form['cuisine_id']
+        print("still here")
+        session.commit()
+        return '200'
+
     if request.method == 'DELETE': 
-        if 'username' not in login_session or creator.id != login_session['user_id']:
+        if 'username' not in login_session or creator.id != login_session['id']:
             return redirect(url_for("showLogin"))
-        recipe = session.query(Recipe).filter_by(id=id).one()
+        for ingredient in ingredients:
+            session.delete(ingredient)
         session.delete(recipe)
         session.commit()
         return "Recipe Deleted."

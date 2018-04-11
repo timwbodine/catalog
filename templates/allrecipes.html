@@ -1,7 +1,6 @@
 
 {% extends "main.html" %}
 {% block content %}
-{% include "header.html" %}
 
     <header>
       <h1>All Recipes</h1>
@@ -17,13 +16,14 @@
 			{% if recipe.cuisine_id == cuisine.cuisine_id %}
       <li>
         <h2>{{recipe.name}}</h2>
+	<p>{{recipe.id}}
         <p>{{recipe.description}}</p>
         <p>{{recipe.cuisine_id}}</p>
         <p>{{recipe.difficulty}}</p>
         <p>{{recipe.user_id}}</p>
 				{% if user_id == recipe.user_id %}
 				<a href="{{url_for('all_recipes_handler')}}">Edit</a>
-				<a href="{{url_for('all_recipes_handler')}}">Delete</a>
+				<a class="delete" data-id="{{recipe.id}}" data-cuisineid="{{recipe.cuisine_id}}" href="#">Delete</a>
 				{% endif %}
       </li>
 
@@ -35,4 +35,28 @@
     <a href = "{{url_for('all_recipes_handler')}}"> Cancel </a>
 
 
+<script type="text/javascript">
+	$('.delete').each(function(i) {
+		id = $(this).attr('data-id');
+		cuisine_id = $(this).attr('data-cuisineid').toString();
+		console.log(cuisine_id);
+		$(this).click(function() {
+			console.log('/cuisines/' + cuisine_id +'/recipes/' + id.toString());
+			$.ajax({
+				type: 'delete',
+				url: '/cuisines/' + cuisine_id +'/recipes/' + id.toString(),
+				success: function(data){
+					console.log('Deletion was successful.');
+					console.log(data);
+					window.location.reload();
+				},
+				error: function (data) {
+					console.log('An error occurred.');
+					console.log(data);
+
+				},	
+			});
+		});
+	});
+</script>
 {% endblock %}
