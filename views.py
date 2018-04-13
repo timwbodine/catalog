@@ -8,12 +8,15 @@ from flask import render_template
 import random, string
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.client import FlowExchangeError
+from google.oauth2 import id_token
+from google.auth.transport import requests as googleRequests
 import sys
 import codecs
 import httplib2
 import json
 from flask import make_response
 import requests
+from xml.etree import ElementTree
 # use PoolListener to enforce foreign key constrainst in sqlite
 from sqlalchemy.interfaces import PoolListener
 class ForeignKeysListener(PoolListener):
@@ -29,103 +32,6 @@ DBSession = sessionmaker(bind=engine)
 session = DBSession()
 app = Flask(__name__)
 
-@app.route('/googleconnect', methods = ['POST'])
-def googleConnect():
-    # Validate state token
-    if request.args.get('state') != login_session['state']:
-        response = make_response(json.dumps('Invalid state parameter.'), 401)
-        response.headers['Content-Type'] = 'application/json'
-        return response
-    # Obtain authorization code
-    code = request.data
-
-    try:
-        # Upgrade the authorization code into a credentials object
-        oauth_flow = flow_from_clientsecrets('client_secrets.json', scope='')
-        oauth_flow.redirect_uri = 'postmessage'
-        credentials = oauth_flow.step2_exchange(code)
-    except FlowExchangeError:
-        response = make_response(
-            json.dumps('Failed to upgrade the authorization code.'), 401)
-        response.headers['Content-Type'] = 'application/json'
-        return response
-
-    # Check that the access token is valid.
-    access_token = credentials.access_token
-    url = ('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=%s'
-           % access_token)
-    h = httplib2.Http()
-    result = json.loads(h.request(url, 'GET')[1])
-    # If there was an error in the access token info, abort.
-    if result.get('error') is not None:
-        response = make_response(json.dumps(result.get('error')), 500)
-        response.headers['Content-Type'] = 'application/json'
-        return response
-
-    # Verify that the access token is used for the intended user.
-    gplus_id = credentials.id_token['sub']
-    if result['user_id'] != gplus_id:
-        response = make_response(
-            json.dumps("Token's user ID doesn't match given user ID."), 401)
-        response.headers['Content-Type'] = 'application/json'
-        return response
-
-    # Verify that the access token is valid for this app.
-    if result['issued_to'] != CLIENT_ID:
-        response = make_response(
-            json.dumps("Token's client ID does not match app's."), 401)
-        print "Token's client ID does not match app's."
-        response.headers['Content-Type'] = 'application/json'
-        return response
-
-    stored_access_token = login_session.get('access_token')
-    stored_gplus_id = login_session.get('gplus_id')
-    if stored_access_token is not None and gplus_id == stored_gplus_id:
-        response = make_response(json.dumps('Current user is already connected.'),
-                                 200)
-        response.headers['Content-Type'] = 'application/json'
-        login_session['access_token'] = credentials.access_token
-        return response
-
-    # Store the access token in the session for later use.
-    login_session['access_token'] = credentials.access_token
-    login_session['gplus_id'] = gplus_id
-
-    # Get user info
-    userinfo_url = "https://www.googleapis.com/oauth2/v1/userinfo"
-    params = {'access_token': credentials.access_token, 'alt': 'json'}
-    answer = requests.get(userinfo_url, params=params)
-
-    data = answer.json()
-    print(data)
-    
-    user_id = getUserId(data['email'])
-    if user_id is not None:
-        user = getUserInfo(user_id)
-        print("fetching user data from database...")
-        login_session['username'] = user.name
-        login_session['email'] = user.email
-        login_session['picture'] = user.picture
-        login_session['id'] = user.id
-    else:
-        print("retrieving user data...")
-        login_session['username'] = data['name']
-        login_session['picture'] = data['picture']
-        login_session['email'] = data['email']
-        login_session['id'] = createUser(login_session)
-
-    
-    output = ''
-    output += '<h1>Welcome, '
-    output += login_session['username']
-    output += '!</h1>'
-    output += '<img src="'
-    print("TYPES %s %s") %(str(login_session['picture']), login_session['username'])
-    output += login_session['picture']
-    output += ' " style = "width: 300px; height: 300px;border-radius: 150px;-webkit-border-radius: 150px;-moz-border-radius: 150px;"> '
-    print("you are now logged in as %s" % login_session['username'])
-    print "done!"
-    return output
 
 @app.route('/googledisconnect')
 def googleDisconnnect():
@@ -157,8 +63,69 @@ def googleDisconnnect():
         response = make_response(json.dumps('Failed to revoke token for given user.', 400))
         response.headers['Content-Type'] = 'application/json'
         return response
+@app.route('/googletokenconnect', methods = ['POST'])
+def googleTokenConnect():
+    CLIENT_ID  = '958193736755-h6gvechgf31qm5eedvkisqectdkp5i0u.apps.googleusercontent.com'
+    try:
+        # Specify the CLIENT_ID of the app that accesses the backend:
+        print request.headers
+        token = request.form['idtoken']
+        print token
+        print requests.Request()
+        idinfo = id_token.verify_oauth2_token(token, googleRequests.Request(), CLIENT_ID)
+        print(idinfo)
+        # Or, if multiple clients access the backend server:
+        # idinfo = id_token.verify_oauth2_token(token, requests.Request())
+        # if idinfo['aud'] not in [CLIENT_ID_1, CLIENT_ID_2, CLIENT_ID_3]:
+        #     raise ValueError('Could not verify audience.')
 
-@app.route('/login')
+        if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+            raise ValueError('Wrong issuer.')
+
+        # If auth request is from a G Suite domain:
+        # if idinfo['hd'] != GSUITE_DOMAIN_NAME:
+        #     raise ValueError('Wrong hosted domain.')
+
+        # ID token is valid. Get the user's Google Account ID from the decoded token.
+        gplus_id = idinfo['sub']
+        stored_gplus_id = login_session.get('gplus_id')
+        if login_session.get('access_token') is not None and gplus_id == stored_gplus_id:
+            response = make_response(json.dumps('Current user is already connected; updating access token.'),200)
+            response.headers['Content-Type'] = 'application/json'
+            login_session['access_token'] = token 
+            return response
+        login_session['access_token'] = token
+        login_session['gplus_id'] = gplus_id
+        user_id = getUserId(idinfo['email'])
+
+        if user_id is not None:
+            user = getUserInfo(user_id)
+            print("fetching user data from database...")
+            login_session['username'] = user.name
+            login_session['email'] = user.email
+            login_session['picture'] = user.picture
+            login_session['id'] = user.id
+        else:
+            login_session['username'] = idinfo['name']
+            login_session['picture'] = idinfo['picture']
+            login_session['email'] = idinfo['email']
+            login_session['id'] = create_user['login_session']
+        
+        output = ''
+        output += '<h1>Welcome, '
+        output += login_session['username']
+        output += '!</h1>'
+        output += '<img src="'
+        print("TYPES %s %s") %(str(login_session['picture']), login_session['username'])
+        output += login_session['picture']
+        output += ' " style = "width: 300px; height: 300px;border-radius: 150px;-webkit-border-radius: 150px;-moz-border-radius: 150px;"> '
+        print("you are now logged in as %s" % login_session['username'])
+        print "done!"
+        return output
+    except ValueError:
+        # Invalid token
+        pass
+@app.route('/login') 
 def showLogin():
     state=''.join(random.choice(string.ascii_uppercase + string.digits) for x in xrange(32))
     login_session['state'] = state
@@ -212,6 +179,7 @@ def all_cuisines_handler():
         return jsonify(cuisines = [i.serialize for i in cuisines])
 
 @app.route('/cuisines/<string:cuisine_id>/recipes/', methods = ['GET'])
+
 def cuisine_recipes_handler(cuisine_id):
     if request.method == 'GET':
         if 'username' not in login_session:
