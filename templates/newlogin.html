@@ -2,6 +2,8 @@
 <html>
 	<head>
 		<script src="https://apis.google.com/js/platform.js" async defer></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js">
+  </script>
 		<meta name="google-signin-client_id" content="958193736755-h6gvechgf31qm5eedvkisqectdkp5i0u.apps.googleusercontent.com">
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width" />
@@ -10,6 +12,7 @@
 	<body>
 		<div class="g-signin2" data-onsuccess="onSignIn"></div>
 <a href="#" onclick="signOut();">Sign out</a>
+<p id="login"></p>
 	</body>
 
 	<script>
@@ -17,6 +20,19 @@
 			var auth2 = gapi.auth2.getAuthInstance();
 			auth2.signOut().then(function () {
 				console.log('User signed out.');
+				
+        $.ajax({
+            type: 'get',
+					url: '{{url_for("googleDisconnect")}}', 
+            success: function (data) {
+                console.log('Submission was successful.');
+                console.log(data);
+            },
+            error: function (data) {
+                console.log('An error occurred.');
+                console.log(data);
+            },
+        });
 			});
 		}
 	</script>
@@ -34,6 +50,12 @@
 	xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
 	xhr.onload = function() {
 		console.log('Signed in as: ' + xhr.responseText);
+		$('#login').html('Login Successful!</br>'+ xhr.responseText + '</br>Redirecting...')
+
+         setTimeout(function() {
+          window.location.href = "/allrecipes";
+         }, 4000);
+		
 	};
 	xhr.send('idtoken=' + id_token);
 }	
