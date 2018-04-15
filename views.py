@@ -119,7 +119,7 @@ def createRecipe():
     if request.method == 'GET':
         if 'username' not in login_session:
             return redirect(url_for('showLogin'))
-        return render_template('newrecipe.html')
+        return render_template('newrecipe.html', username=login_session['username'])
     if request.method == 'POST':
         print(login_session['username']) 
         print(login_session['email'])
@@ -136,9 +136,11 @@ def all_recipes_handler():
         print recipes
         if 'username' not in login_session:
             user_id = None
+            username = None
         else:
             user_id = getUserId(login_session['email'])
-        return render_template('allrecipes.html', recipes=recipes, cuisines=cuisines, user_id=user_id)
+            username= login_session['username']
+        return render_template('allrecipes.html', username=username, recipes=recipes, cuisines=cuisines, user_id=user_id)
         return jsonify(recipes = [i.serialize for i in recipes])
 
     if request.method == 'POST':
@@ -153,10 +155,14 @@ def all_recipes_handler():
         session.commit()
 @app.route('/cuisines', methods = ['GET'])
 def all_cuisines_handler():
+    if username not in login_session:
+        username = None
+    else:
+        username=login_session['username']
     if request.method == 'GET':
         cuisines = session.query(Cuisine).all()
         print cuisines
-        return render_template('showcuisines.html', cuisines=cuisines)
+        return render_template('showcuisines.html', username=username, cuisines=cuisines)
         return jsonify(cuisines = [i.serialize for i in cuisines])
 
 @app.route('/cuisines/<string:cuisine_id>/recipes/', methods = ['GET'])
@@ -165,10 +171,12 @@ def cuisine_recipes_handler(cuisine_id):
     if request.method == 'GET':
         if 'username' not in login_session:
             user_id = None
+            username = None
         else:
             user_id = getUserId(login_session['email'])
+            username = login_session['username']
         recipes = session.query(Recipe).filter_by(cuisine_id=cuisine_id).all()
-        return render_template("cuisinerecipes.html", recipes=recipes,cuisine=cuisine_id, user_id=user_id)
+        return render_template("cuisinerecipes.html", username=username, recipes=recipes,cuisine=cuisine_id, user_id=user_id)
         return jsonify(recipes =[i.serialize for i in recipes])
 
 @app.route('/cuisines/<string:cuisine_id>/recipes/<int:id>', methods = ['GET','PUT','DELETE'])
@@ -178,10 +186,10 @@ def recipe_handler(id, cuisine_id):
     creator=getUserInfo(recipe.user_id)
     if request.method == 'GET':
         if 'username' not in login_session or creator.id != login_session['id']:
-            return render_template("recipe.html", cuisine_id=cuisine_id, user_id=None, recipe=recipe, ingredients=ingredients) 
+            return render_template("recipe.html", username=None, cuisine_id=cuisine_id, user_id=None, recipe=recipe, ingredients=ingredients) 
         else:
             user_id = getUserId(login_session['email'])
-        return render_template("recipe.html", cuisine_id=cuisine_id, user_id=user_id, recipe=recipe, ingredients=ingredients) 
+        return render_template("recipe.html", username=login_session['username'], cuisine_id=cuisine_id, user_id=user_id, recipe=recipe, ingredients=ingredients) 
         return jsonify(RecipeAttributes = recipe.serialize)
     if request.method == 'PUT':
         print("hello!")
@@ -214,7 +222,7 @@ def create_ingredient(cuisine_id, recipe_id):
     if 'username' not in login_session or creator.id != login_session['id']:
         return redirect(url_for("showLogin"))
     if request.method == 'GET':
-        return render_template('createIngredient.html', recipe_id=recipe_id, cuisine_id=cuisine_id)
+        return render_template('createIngredient.html', username=login_session['username'], recipe_id=recipe_id, cuisine_id=cuisine_id)
     if request.method == 'POST':
         ingredient = Ingredient(recipe_id = recipe_id, user_id = getUserId(login_session['email']), name = request.form['name'], amount = request.form['amount'], unit = request.form['unit'])
         session.add(ingredient)
@@ -230,7 +238,7 @@ def ingredient_handler(id, cuisine_id, recipe_id):
         return redirect(url_for("showLogin"))
     user_id = getUserId(login_session['email'])
     if request.method == 'GET':
-        return render_template("editIngredient.html",user_id=user_id, recipe_id=recipe_id, cuisine_id=cuisine_id, ingredient=ingredient) 
+        return render_template("editIngredient.html", username=login_session['username'], user_id=user_id, recipe_id=recipe_id, cuisine_id=cuisine_id, ingredient=ingredient) 
     if request.method == 'PUT':
         editedIngredient =ingredient 
         editedIngredient.name = request.form['name']
