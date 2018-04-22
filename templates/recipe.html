@@ -1,11 +1,6 @@
 {% extends "main.html" %}
 {% block content %}
-	<div class="row top-menu">
-		<div class="col-md-10"></div>
-		<div class="col-md-2 text-right">
-			<a href="{{url_for('showLogin')}}">Click Here to Log in </a>
-		</div>
-	</div>
+{% include "header.html" %}
 	<div class="row divider blue">
 		<div class="col-md-12"></div>
 	</div>
@@ -40,7 +35,7 @@
 		<div class="col-md-1"></div>
 	</div>
 	<div class="col-md-1"></div>
-	{% if user_id == recipe.user_id %}
+	{% if user_id != None and user_id  == recipe.user_id %}
 	<div class="row">
 		<div class="col-md-6 col-md-offset-1 padding-top">
 			<form id="editForm" action="{{url_for('recipe_handler', cuisine_id=cuisine_id, id=recipe.id)}}" method = "put">
@@ -49,7 +44,9 @@
 				<input type ="text" class="form-control" maxlength="100" name="name" value="{{recipe.name}}">
 				<div class="padding-bottom"></div>
 				<label for="name">Description:</label>
-				<input type ="text" class="form-control" maxlength="100" name="description" value="{{recipe.description}}">
+				<textarea rows="20" cols="100" type ="text" class="form-control" maxlength="1000" name="description"> 
+					{{recipe.description}}
+				</textarea>
 				<div class="padding-bottom"></div>
 				<label for="name">Difficulty:</label>
 				<input type ="text" class="form-control" maxlength="100" name="difficulty" value="{{recipe.difficulty}}">
@@ -101,7 +98,6 @@
         });
     });
 </script>
-		<h3>{{recipe.description}}</h3>
 		{%for ingredient in ingredients%}
 		<li><p>{{ingredient.name}}</p>
 		       
@@ -122,7 +118,7 @@
 		$(this).click(function() {
 			$.ajax({
 				type: 'delete',
-				url: '/cuisines/{{cuisine_id}}/recipes/{{recipe.id}}/ingredients/'+id.toString(),
+				url: '/cuisines/{{cuisine_id}}/recipes/{{recipe.id}}/ingredients/'+id.toString()+'?state={{STATE}}',
 				success: function(data){
 					console.log('Deletion was successful.');
 					console.log(data);

@@ -4,12 +4,21 @@
 		<script src="https://apis.google.com/js/platform.js" async defer></script>
   <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js">
   </script>
-		<meta name="google-signin-client_id" content="958193736755-h6gvechgf31qm5eedvkisqectdkp5i0u.apps.googleusercontent.com">
+		<meta name="google-signin-client_id" content="958193736755-h78et4stlkbm5pooks638b1js7368rn2.apps.googleusercontent.com">
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width" />
 		<title>Newlogin</title>
 	</head>
 	<body>
+{% with messages = get_flashed_messages() %}
+{% endwith %}
+  {% if messages %}
+    <ul class=flashes>
+    {% for message in messages %}
+      <li>{{ message }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
 		<div class="g-signin2" data-onsuccess="onSignIn"></div>
 <a href="#" onclick="signOut();">Sign out</a>
 <p id="login"></p>
@@ -38,20 +47,22 @@
 	</script>
 	<script charset="utf-8">
 	function onSignIn(googleUser) {
-  var profile = googleUser.getBasicProfile();
+
+	var profile = googleUser.getBasicProfile();
 	var id_token = googleUser.getAuthResponse().id_token;
+
 	console.log("ID_token: "+ id_token);
   console.log('ID: ' + profile.getId()); // Do not send to your backend! Use an ID token instead.
   console.log('Name: ' + profile.getName());
   console.log('Image URL: ' + profile.getImageUrl());
   console.log('Email: ' + profile.getEmail()); // This is null if the 'email' scope is not present.
 	var xhr = new XMLHttpRequest();
-	xhr.open('POST', 'http://localhost:5000/googletokenconnect');
+
+	xhr.open('POST', 'http://localhost:5000/googletokenconnect?state={{STATE}}');
 	xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
 	xhr.onload = function() {
 		console.log('Signed in as: ' + xhr.responseText);
 		$('#login').html('Login Successful!</br>'+ xhr.responseText + '</br>Redirecting...')
-
          setTimeout(function() {
           window.location.href = "/allrecipes";
          }, 4000);

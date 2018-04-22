@@ -1,5 +1,5 @@
 from models import Base, Cuisine, Recipe, User, Ingredient
-from flask import Flask, jsonify, request, redirect, url_for
+from flask import Flask, jsonify, request, redirect, url_for, flash
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy import create_engine
@@ -16,9 +16,9 @@ import httplib2
 import json
 from flask import make_response
 import requests
-from xml.etree import ElementTree
 # use PoolListener to enforce foreign key constrainst in sqlite
 from sqlalchemy.interfaces import PoolListener
+import time
 class ForeignKeysListener(PoolListener):
     def connect(self, dbapi_con, con_record):
         db_cursor = dbapi_con.execute('pragma foreign_keys=ON')
@@ -35,25 +35,38 @@ app = Flask(__name__)
 
 @app.route('/googledisconnect')
 def googleDisconnect():
+
+        requests.post('https://accounts.google.com/o/oauth2/revoke',
+        params={'token': login_session['access_token']},
+        headers = {'content-type': 'application/x-www-form-urlencoded'})
         del login_session['access_token']
         del login_session['gplus_id']
         del login_session['username']
         del login_session['email']
         del login_session['picture']
-        response = make_response(json.dumps('Successfully disconnected.'), 200)
-        response.headers['Content-Type'] = 'application/json'
-        return response
-
+        return redirect(url_for('all_recipes_handler')) 
 @app.route('/googletokenconnect', methods = ['POST'])
 def googleTokenConnect():
-    CLIENT_ID  = '958193736755-h6gvechgf31qm5eedvkisqectdkp5i0u.apps.googleusercontent.com'
     try:
-        # Specify the CLIENT_ID of the app that accesses the backend:
+        print("im trying.")# Specify the CLIENT_ID of the app that accesses the backend:
+        if request.args.get('state') != login_session['state']:
+            response = make_response(json.dumps('Invalid state parameter.'), 401)
+            print ('here be the place')
+            response.headers['Content-Type'] = 'application/json'
+            return response
         print request.headers
         token = request.form['idtoken']
         print token
-        print requests.Request()
-        idinfo = id_token.verify_oauth2_token(token, googleRequests.Request(), CLIENT_ID)
+        print googleRequests.Request()
+        print(CLIENT_ID)
+        print("Methinks right here   <============================================")
+        try:
+           idinfo = id_token.verify_oauth2_token(token, googleRequests.Request(), CLIENT_ID)
+        except ValueError as e:
+           print(e)
+           response = make_response(json.dumps(e),500)
+           
+        print("step 1...")
         print(idinfo)
         # Or, if multiple clients access the backend server:
         # idinfo = id_token.verify_oauth2_token(token, requests.Request())
@@ -61,6 +74,7 @@ def googleTokenConnect():
         #     raise ValueError('Could not verify audience.')
 
         if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+            print('wrong issuer!')
             raise ValueError('Wrong issuer.')
 
         # If auth request is from a G Suite domain:
@@ -69,16 +83,17 @@ def googleTokenConnect():
 
         # ID token is valid. Get the user's Google Account ID from the decoded token.
         gplus_id = idinfo['sub']
+        print("step 2...")
         stored_gplus_id = login_session.get('gplus_id')
         if login_session.get('access_token') is not None and gplus_id == stored_gplus_id:
+            print('step 3')
             response = make_response(json.dumps('Current user is already connected; updating access token.'),200)
             response.headers['Content-Type'] = 'application/json'
             login_session['access_token'] = token 
             return response
         login_session['access_token'] = token
         login_session['gplus_id'] = gplus_id
-        user_id = getUserId(idinfo['email'])
-
+        user_id = getUserId(idinfo['email']) 
         if user_id is not None:
             user = getUserInfo(user_id)
             print("fetching user data from database...")
@@ -90,7 +105,7 @@ def googleTokenConnect():
             login_session['username'] = idinfo['name']
             login_session['picture'] = idinfo['picture']
             login_session['email'] = idinfo['email']
-            login_session['id'] = create_user['login_session']
+            login_session['id'] = createUser('login_session')
         
         output = ''
         output += '<h1>Welcome, '
@@ -105,32 +120,38 @@ def googleTokenConnect():
         return output
     except ValueError:
         # Invalid token
+        print('INVALID!!!')
         pass
 @app.route('/login') 
 def showLogin():
-    state=''.join(random.choice(string.ascii_uppercase + string.digits) for x in xrange(32))
-    login_session['state'] = state
+    state=generateAntiForgeryToken();
     print(state)
     return render_template('newLogin.html', STATE=state)
-    return "The current session state is %s" %login_session['state']
     
 @app.route('/createrecipe', methods = ['GET', 'POST'])
 def createRecipe():
     if request.method == 'GET':
         if 'username' not in login_session:
             return redirect(url_for('showLogin'))
-        return render_template('newrecipe.html', username=login_session['username'])
+        state = generateAntiForgeryToken()
+        print state
+        print ("that's the generated state")
+        return render_template('newrecipe.html', username=login_session['username'], STATE=login_session['state'])
     if request.method == 'POST':
-        print(login_session['username']) 
-        print(login_session['email'])
-        print("that is the current username")
+        print("and this is the state returned from the form:")
+        print request.form['state']
+        if request.form['state'] != login_session['state']:
+            response = make_response(json.dumps('Invalid state parameter.'), 401)
+            response.headers['Content-Type'] = 'application/json'
+            return response
         newRecipe = Recipe(name = request.form['name'], description = request.form['description'], difficulty = request.form['difficulty'], cuisine_id = request.form['cuisine'], user_id = getUserId(login_session['email']))
         session.add(newRecipe)
         session.commit()
         return redirect(url_for('create_ingredient', cuisine_id=newRecipe.cuisine_id, recipe_id=newRecipe.id))
-@app.route('/allrecipes', methods = ['GET', 'POST'])
+@app.route('/allrecipes')
 def all_recipes_handler():
     if request.method == 'GET':
+        state = generateAntiForgeryToken()
         recipes = session.query(Recipe).all()
         cuisines = session.query(Cuisine).all()
         print recipes
@@ -140,22 +161,12 @@ def all_recipes_handler():
         else:
             user_id = getUserId(login_session['email'])
             username= login_session['username']
-        return render_template('allrecipes.html', username=username, recipes=recipes, cuisines=cuisines, user_id=user_id)
+        return render_template('allrecipes.html', username=username, recipes=recipes, cuisines=cuisines, user_id=user_id, STATE=login_session['state'])
         return jsonify(recipes = [i.serialize for i in recipes])
 
-    if request.method == 'POST':
-        if 'username' not in login_session:
-            return redirect(url_for('showLogin'))
-        name = request.args['name']
-        description = request.args['description']
-        difficulty = request.args['difficulty']
-        cuisine_id = request.args['cuisine_id']
-        newRecipe = Recipe(name=name, description=description, difficulty=difficulty, cuisine_id = cuisine_id,user_id=login_session['user_id'])
-        session.add(newRecipe)
-        session.commit()
 @app.route('/cuisines', methods = ['GET'])
 def all_cuisines_handler():
-    if username not in login_session:
+    if 'username' not in login_session:
         username = None
     else:
         username=login_session['username']
@@ -175,8 +186,9 @@ def cuisine_recipes_handler(cuisine_id):
         else:
             user_id = getUserId(login_session['email'])
             username = login_session['username']
+        cuisines = session.query(Cuisine).all()
         recipes = session.query(Recipe).filter_by(cuisine_id=cuisine_id).all()
-        return render_template("cuisinerecipes.html", username=username, recipes=recipes,cuisine=cuisine_id, user_id=user_id)
+        return render_template("cuisinerecipes.html",cuisines = cuisines, username=username, recipes=recipes,cuisine=cuisine_id, user_id=user_id)
         return jsonify(recipes =[i.serialize for i in recipes])
 
 @app.route('/cuisines/<string:cuisine_id>/recipes/<int:id>', methods = ['GET','PUT','DELETE'])
@@ -185,13 +197,19 @@ def recipe_handler(id, cuisine_id):
     ingredients = session.query(Ingredient).filter_by(recipe_id=id).all()
     creator=getUserInfo(recipe.user_id)
     if request.method == 'GET':
-        if 'username' not in login_session or creator.id != login_session['id']:
+        state = generateAntiForgeryToken()
+        if 'username' not in login_session:
             return render_template("recipe.html", username=None, cuisine_id=cuisine_id, user_id=None, recipe=recipe, ingredients=ingredients) 
         else:
             user_id = getUserId(login_session['email'])
-        return render_template("recipe.html", username=login_session['username'], cuisine_id=cuisine_id, user_id=user_id, recipe=recipe, ingredients=ingredients) 
+            print("user id is...%s" % user_id)
+        return render_template("recipe.html",STATE=login_session['state'], username=login_session['username'], cuisine_id=cuisine_id, user_id=user_id, recipe=recipe, ingredients=ingredients) 
         return jsonify(RecipeAttributes = recipe.serialize)
     if request.method == 'PUT':
+        if request.args.get('state') != login_session['state']:
+            response = make_response(json.dumps('Invalid state parameter.'), 401)
+            response.headers['Content-Type'] = 'application/json'
+            return response
         print("hello!")
         if 'username' not in login_session or creator.id != login_session['id']:
             return redirect(url_for("showLogin"))
@@ -207,6 +225,11 @@ def recipe_handler(id, cuisine_id):
         return '200'
 
     if request.method == 'DELETE': 
+
+        if request.args.get('state') != login_session['state']:
+            response = make_response(json.dumps('Invalid state parameter.'), 401)
+            response.headers['Content-Type'] = 'application/json'
+            return response
         if 'username' not in login_session or creator.id != login_session['id']:
             return redirect(url_for("showLogin"))
         for ingredient in ingredients:
@@ -222,8 +245,14 @@ def create_ingredient(cuisine_id, recipe_id):
     if 'username' not in login_session or creator.id != login_session['id']:
         return redirect(url_for("showLogin"))
     if request.method == 'GET':
-        return render_template('createIngredient.html', username=login_session['username'], recipe_id=recipe_id, cuisine_id=cuisine_id)
+        state = generateAntiForgeryToken() 
+        return render_template('createIngredient.html',STATE=login_session['state'], username=login_session['username'], recipe_id=recipe_id, cuisine_id=cuisine_id)
     if request.method == 'POST':
+        print request.form['state']
+        if request.form['state'] != login_session['state']:
+            response = make_response(json.dumps('Invalid state parameter.'), 401)
+            response.headers['Content-Type'] = 'application/json'
+            return response
         ingredient = Ingredient(recipe_id = recipe_id, user_id = getUserId(login_session['email']), name = request.form['name'], amount = request.form['amount'], unit = request.form['unit'])
         session.add(ingredient)
         session.commit()
@@ -238,8 +267,13 @@ def ingredient_handler(id, cuisine_id, recipe_id):
         return redirect(url_for("showLogin"))
     user_id = getUserId(login_session['email'])
     if request.method == 'GET':
-        return render_template("editIngredient.html", username=login_session['username'], user_id=user_id, recipe_id=recipe_id, cuisine_id=cuisine_id, ingredient=ingredient) 
+        state = generateAntiForgeryToken()
+        return render_template("editIngredient.html", username=login_session['username'],STATE=login_session['state'], user_id=user_id, recipe_id=recipe_id, cuisine_id=cuisine_id, ingredient=ingredient) 
     if request.method == 'PUT':
+        if request.form['state'] != login_session['state']:
+            response = make_response(json.dumps('Invalid state parameter.'), 401)
+            response.headers['Content-Type'] = 'application/json'
+            return response
         editedIngredient =ingredient 
         editedIngredient.name = request.form['name']
         editedIngredient.amount = request.form['amount']
@@ -248,6 +282,10 @@ def ingredient_handler(id, cuisine_id, recipe_id):
         session.commit()
         return(url_for('all_recipes_handler'))
     if request.method == 'DELETE':
+        if request.args.get('state') != login_session['state']:
+            response = make_response(json.dumps('Invalid state parameter.'), 401)
+            response.headers['Content-Type'] = 'application/json'
+            return response
         deletedIngredient = ingredient
         session.delete(deletedIngredient)
         session.commit()
@@ -270,6 +308,11 @@ def getUserId(email):
     except:
         return None
     
+def generateAntiForgeryToken(): 
+    state = ''.join(random.choice(string.ascii_uppercase + string.digits)
+                    for x in xrange(32))
+    login_session['state'] = state
+    return state
 
 if __name__ == '__main__':
     app.secret_key = 'super secret key'

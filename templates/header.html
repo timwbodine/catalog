@@ -1,11 +1,21 @@
-<div class="row top-menu">
-	<div class="col-md-6">
-		<a href="{{url_for('showLogin')}}">
-			<span class="glyphicon glyphicon-home" aria-hidden="true"></span>Show All Restaurants
+<div class="header-container">
+	<div class="item header-item-a">
+		<span>
+		<a  href="{{url_for('all_recipes_handler')}}">
+			Show All Recipes
 		</a>
+		</span>
 	</div>
-	<div class="col-md-6 text-right">
-		<a href="{{url_for('showLogin')}}">User login: {{username}} </a>
+	<div class="item header-item-b">
+		<h1>RECIPES APP!</h1>
+	</div>
+	<div class="item header-item-c">
+
+		{%if username !=  None %}
+		<a  href="{{url_for('googleDisconnect')}}">Log out {{username}} </a>
+		{%else%}
 		
+		<a  href="{{url_for('showLogin')}}">User login</a>
+		{%endif%}
 	</div>
 </div>
