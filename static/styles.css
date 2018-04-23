@@ -41,3 +41,20 @@ overflow-y: auto;
 	
 }
 
+
+.flashes {
+	display: inline;
+	list-style-type: none;
+	text-align: center;
+	width: 100%;
+}
+.error {
+	background: red;
+}
+.message {
+	background: #8ee48e;
+}
+
+.flash {
+
+}

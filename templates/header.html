@@ -18,4 +18,15 @@
 		<a  href="{{url_for('showLogin')}}">User login</a>
 		{%endif%}
 	</div>
+	
 </div>
+
+		{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <ul class=flashes>
+    {% for category, message in messages %}
+		<li class="{{category}} flash">{{ message }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
