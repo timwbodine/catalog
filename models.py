@@ -14,6 +14,7 @@ class User(Base):
     name = Column(String(32), index = True)
     email = Column(String(250), index = True)
     picture = Column(String(250), index = True)
+    
 class Cuisine(Base):
     __tablename__ = 'cuisines'
     cuisine_id = Column(String(80), primary_key=True)
@@ -27,13 +28,12 @@ class Recipe(Base):
     __tablename__ = 'recipes'
     name = Column(String(80), nullable = False)
     description = Column(String(250))
-    difficulty = Column(String(80))
+    difficulty = Column(String, ForeignKey('difficulties.difficulty_id'), nullable=False)
     cuisine_id = Column(String, ForeignKey('cuisines.cuisine_id'), nullable=False)
     cuisine = relationship(Cuisine)
     user_id = Column(Integer, ForeignKey('users.id'))
     user = relationship(User)
     id = Column(Integer, primary_key=True)
- 
     @property
     def serialize(self):
         return {
@@ -44,6 +44,10 @@ class Recipe(Base):
             'user_id' : self.user_id,
             'id' : self.id
         }
+
+class Difficulty(Base):
+    __tablename__ = 'difficulties'
+    difficulty_id = Column(String(80), primary_key=True)
 
 class Ingredient(Base):
     __tablename__ = 'ingredients'

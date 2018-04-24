@@ -33,9 +33,7 @@
 			{% if recipe[0].cuisine_id == cuisine.cuisine_id %}
       <li>
         <h2><a href="{{url_for('recipe_handler', cuisine_id=recipe[0].cuisine_id, id=recipe[0].id)}}">{{recipe[0].name}}</a></h2>
-	<p>{{recipe[0].id}}
-        <p>{{recipe[0].description}}</p>
-        <p>{{recipe[0].cuisine_id}}</p>
+        <p>{{recipe[0].description[:80]}}...</p>
         <p>{{recipe[0].difficulty}}</p>
         <p>{{recipe[1].name}}</p>
 				{% if user_id == recipe[1].id %}
@@ -65,9 +63,7 @@
 			{% if (recipe[0].cuisine_id == cuisine.cuisine_id) and (recipe[0].user_id == user_id)%}
       <li>
         <h2><a href="{{url_for('recipe_handler', cuisine_id=recipe[0].cuisine_id, id=recipe[0].id)}}">{{recipe[0].name}}</a></h2>
-	<p>{{recipe[0].id}}
-        <p>{{recipe[0].description[:20]}}</p>
-        <p>{{recipe[0].cuisine_id}}</p>
+        <p>{{recipe[0].description[:80]}}...</p>
         <p>{{recipe[0].difficulty}}</p>
 	<a href="{{url_for('recipe_handler', cuisine_id=recipe[0].cuisine_id, id=recipe[0].id)}}">Edit</a>
 	<a class="delete" data-id="{{recipe[0].id}}" data-cuisineid="{{recipe[0].cuisine_id}}" href="#">Delete</a>

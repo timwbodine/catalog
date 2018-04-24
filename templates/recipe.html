@@ -44,12 +44,16 @@
 				<input type ="text" class="form-control" maxlength="100" name="name" value="{{recipe.name}}">
 				<div class="padding-bottom"></div>
 				<label for="name">Description:</label>
-				<textarea rows="20" cols="100" type ="text" class="form-control" maxlength="1000" name="description"> 
-					{{recipe.description}}
+				<textarea rows="20" cols="100" type ="text" class="form-control" maxlength="1000" name="description">
+{{recipe.description}}
 				</textarea>
 				<div class="padding-bottom"></div>
 				<label for="name">Difficulty:</label>
-				<input type ="text" class="form-control" maxlength="100" name="difficulty" value="{{recipe.difficulty}}">
+				<select id= "difficulty" class="form-control" name="difficulty">
+					<option value="Easy">Easy</option>
+					<option value="Intermediate">Intermediate</option>
+					<option value="Advanced">Advanced</option>
+				</select>
 				<div class="padding-bottom"></div>
 				
 				<label for="name">Cuisine:</label>
@@ -62,22 +66,24 @@
 					<option value="Italian">Italian</option>
 				</select>
 				<input type="hidden" name="state" value="{{STATE}}">
-				<button type="submit" class="btn btn-default" id="submit" type="submit">
-				<span class="glyphicon glyphicon-cutlery" aria-hidden="true"></span>Edit</button>
+				<div>
+				</div>
+				<button type="submit" class="btn btn-default" id="submit" type="submit">Submit</button>
 				</div>
 			</form>
 		</div>
 	</div>
 	    <script>
 		    $('#cuisine').val('{{recipe.cuisine_id}}')
+		    $('#difficulty').val('{{recipe.difficulty}}')
 	    </script>
     <a href = "{{url_for('recipe_handler', cuisine_id=cuisine_id, id=recipe.id)}}"> Cancel </a>
     {% endif %}
-    {% if user_id == None %}
-    <h1> {{recipe.name}} </h1>
+    {% if user_id != creator.id %}
     <h3> {{recipe.description}}</h3>
     <h3> {{recipe.difficulty}}</h3>
     <h3> {{recipe.cuisine_id}}</h3>
+    <h3>recipe created by {{creator.name}} </h3>
     {% endif %}
 <script type="text/javascript">
     var frm = $('#editForm');
@@ -103,8 +109,7 @@
     });
 </script>
 		{%for ingredient in ingredients%}
-		<li><p>{{ingredient.name}}</p>
-		       
+		<li>{{ingredient.amount}} {{ingredient.unit}} {{ingredient.name}}
 				{% if user_id == ingredient.user_id %}
 				<a href="{{url_for('ingredient_handler', id=ingredient.id, cuisine_id=recipe.cuisine_id, recipe_id=recipe.id)}}">Edit</a>
 				<a class="delete" id="{{ingredient.id}}",  href="#">Delete</a>
@@ -112,7 +117,9 @@
 		</li>
 		{%endfor%}	
 	<div>
+		{% if user_id == recipe.user_id  %}
 		<a href="{{url_for('create_ingredient',cuisine_id=recipe.cuisine_id,recipe_id=recipe.id)}}">Add Ingredient</a>
+		{% endif %}
 	</div>
 	<div class="col-md-1"></div>
 	

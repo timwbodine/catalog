@@ -154,7 +154,6 @@ def createRecipe():
 @app.route('/allrecipes')
 def all_recipes_handler():
     if request.method == 'GET':
-        state = generateAntiForgeryToken()
         cuisines = session.query(Cuisine).all()
         recipes = []
         for recipe in session.query(Recipe).all():
@@ -184,13 +183,14 @@ def all_cuisines_handler():
 
 def cuisine_recipes_handler(cuisine_id):
     if request.method == 'GET':
-        state = generateAntiForgeryToken()
         if 'username' not in login_session:
+            state = None
             user_id = None
             username = None
         else:
             user_id = getUserId(login_session['email'])
             username = login_session['username']
+            state=login_session['state']
         cuisines = session.query(Cuisine).all()
         recipes = []
         for recipe in session.query(Recipe).filter_by(cuisine_id=cuisine_id).all():
@@ -205,13 +205,14 @@ def recipe_handler(id, cuisine_id):
     ingredients = session.query(Ingredient).filter_by(recipe_id=id).all()
     creator=getUserInfo(recipe.user_id)
     if request.method == 'GET':
-        state = generateAntiForgeryToken()
         if 'username' not in login_session:
-            return render_template("recipe.html", username=None, cuisine_id=cuisine_id, user_id=None, recipe=recipe, ingredients=ingredients) 
+            state = None
+            return render_template("recipe.html", creator=creator, username=None, cuisine_id=cuisine_id, user_id=None, recipe=recipe, ingredients=ingredients) 
         else:
+            state = login_session['state']
             user_id = getUserId(login_session['email'])
             print("user id is...%s" % user_id)
-        return render_template("recipe.html",STATE=login_session['state'], username=login_session['username'], cuisine_id=cuisine_id, user_id=user_id, recipe=recipe, ingredients=ingredients) 
+            return render_template("recipe.html", creator=creator, STATE=login_session['state'], username=login_session['username'], cuisine_id=cuisine_id, user_id=user_id, recipe=recipe, ingredients=ingredients) 
         return jsonify(RecipeAttributes = recipe.serialize)
     if request.method == 'PUT':
         if request.form['state'] != login_session['state']:
@@ -220,7 +221,6 @@ def recipe_handler(id, cuisine_id):
             flash('invalid state parameter', 'error')
             return redirect(url_for('recipe_handler', id=id, cuisine_id=cuisine_id)) 
         
-        print("hello!")
         if 'username' not in login_session or creator.id != login_session['id']:
             return redirect(url_for("showLogin"))
         print(request.form['name'])
@@ -283,7 +283,7 @@ def ingredient_handler(id, cuisine_id, recipe_id):
         return redirect(url_for("showLogin"))
     user_id = getUserId(login_session['email'])
     if request.method == 'GET':
-        state = generateAntiForgeryToken()
+        state = login_session['state'] 
         return render_template("editIngredient.html", username=login_session['username'],STATE=login_session['state'], user_id=user_id, recipe_id=recipe_id, cuisine_id=cuisine_id, ingredient=ingredient) 
     if request.method == 'PUT':
         if request.form['state'] != login_session['state']:

@@ -17,10 +17,17 @@
 				<input type ="text" class="form-control" maxlength="100" name="name">
 				<div class="padding-bottom"></div>
 				<label for="name">Description:</label>
-				<input type ="text" class="form-control" maxlength="100" name="description">
+				<textarea rows="20" cols="100" type ="text" class="form-control" maxlength="1000" name="description"></textarea>
 				<div class="padding-bottom"></div>
 				<label for="name">Difficulty:</label>
-				<input type ="text" class="form-control" maxlength="100" name="difficulty">
+				<select class="form-control" name="difficulty">
+					<option value="Easy">Easy</option>
+					<option value="Intermediate">Intermediate</option>
+					<option value="Advanced">Advanced</option>
+					<option value="Sushi">Sushi</option>
+					<option value="Indian">Indian</option>
+					<option value="Italian">Italian</option>
+				</select>
 				<input type = hidden name= "state" value = "{{STATE}}">
 
 				<div class="padding-bottom"></div>
