@@ -12,6 +12,7 @@
 	<div class="item header-item-c">
 
 		{%if username !=  None %}
+		<img src="{{picture}}" alt="user image" height="42" width="42">
 		<a  href="{{url_for('googleDisconnect')}}">Log out {{username}} </a>
 		{%else%}
 		
